@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ product.name }} - Компьютерный магазин{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <!-- Хлебные крошки -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'shop:index' %}">Главная</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ product.category.get_absolute_url }}">{{ product.category.name }}</a>
+            </li>
+            <li class="breadcrumb-item active">{{ product.name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <!-- Изображения товара -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    {% if product.image %}
+                    <img src="{{ product.image.url }}" class="img-fluid mb-3" alt="{{ product.name }}" 
+                         id="mainImage">
+                    {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 400px;">
+                        <i class="bi bi-image text-muted" style="font-size: 5rem;"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Дополнительные изображения -->
+                    {% if product_images %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% for img in product_images %}
+                        <img src="{{ img.image.url }}" class="img-thumbnail" 
+                             style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
+                             onclick="changeMainImage('{{ img.image.url }}')">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о товаре -->
+        <div class="col-md-7">
+            <h1 class="h2">{{ product.name }}</h1>
+            
+            <!-- Рейтинг -->
+            <div class="mb-3">
+                {% if average_rating > 0 %}
+                <span class="text-warning h5">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= average_rating %}★{% else %}☆{% endif %}
+                    {% endfor %}
+                </span>
+                <span class="text-muted">{{ average_rating }} / 5.0</span>
+                <a href="#reviews" class="text-decoration-none ms-2">({{ review_count }} отзывов)</a>
+                {% else %}
+                <span class="text-muted">Нет отзывов</span>
+                {% endif %}
+            </div>
+            
+            <!-- Цена и наличие -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ product.price }} ₽</h3>
+                    
+                    {% if product.available and product.stock > 0 %}
+                    <p class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        <strong>В наличии:</strong> {{ product.stock }} шт.
+                    </p>
+                    {% else %}
+                    <p class="mb-2">
+                        <i class="bi bi-x-circle-fill text-danger"></i>
+                        <strong>Нет в наличии</strong>
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Форма добавления в корзину -->
+                    {% if product.available and product.stock > 0 %}
+                    <form method="post" action="{% url 'cart:cart_add' product.id %}" class="d-flex gap-2 mb-3">
+                        {% csrf_token %}
+                        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" 
+                               class="form-control" style="width: 100px;">
+                        <input type="hidden" name="override" value="False">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="bi bi-cart-plus"></i> Добавить в корзину
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    <!-- Кнопки действий -->
+                    <div class="d-flex gap-2">
+                        {% if user.is_authenticated %}
+                            {% if in_wishlist %}
+                            <button class="btn btn-outline-danger" onclick="removeFromWishlist({{ product.id }})">
+                                <i class="bi bi-heart-fill"></i> В избранном
+                            </button>
+                            {% else %}
+                            <button class="btn btn-outline-danger" onclick="addToWishlist({{ product.id }})">
+                                <i class="bi bi-heart"></i> В избранное
+                            </button>
+                            {% endif %}
+                        {% else %}
+                        <a href="{% url 'users:login' %}?next={{ request.path }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-heart"></i> В избранное
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Краткое описание -->
+            <div class="mb-4">
+                <h5>Описание</h5>
+                <p>{{ product.description }}</p>
+            </div>
+            
+            <!-- Просмотры -->
+            <p class="text-muted small">
+                <i class="bi bi-eye"></i> Просмотров: {{ product.views_count }}
+            </p>
+        </div>
+    </div>
+    
+    <!-- Табы с подробной информацией -->
+    <div class="mt-5">
+        <ul class="nav nav-tabs" id="productTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="specs-tab" data-bs-toggle="tab" 
+                        data-bs-target="#specs" type="button">
+                    Характеристики
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" 
+                        data-bs-target="#reviews" type="button">
+                    Отзывы ({{ review_count }})
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content border border-top-0 p-4" id="productTabsContent">
+            <!-- Характеристики -->
+            <div class="tab-pane fade show active" id="specs" role="tabpanel">
+                {% if product.specifications %}
+                <table class="table">
+                    <tbody>
+                        {% for key, value in product.specifications.items %}
+                        <tr>
+                            <th style="width: 30%;">{{ key }}</th>
+                            <td>{{ value }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Характеристики не указаны</p>
+                {% endif %}
+            </div>
+            
+            <!-- Отзывы -->
+            <div class="tab-pane fade" id="reviews" role="tabpanel">
+                <!-- Форма добавления отзыва -->
+                {% if user.is_authenticated %}
+                    {% if user_review %}
+                    <div class="alert alert-info">
+                        Вы уже оставили отзыв на этот товар.
+                    </div>
+                    {% else %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5>Оставить отзыв</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{% url 'shop:add_review' product.id %}">
+                                {% csrf_token %}
+                                {{ review_form|crispy }}
+                                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="alert alert-warning">
+                    <a href="{% url 'users:login' %}?next={{ request.path }}">Войдите</a>, чтобы оставить отзыв.
+                </div>
+                {% endif %}
+                
+                <!-- Список отзывов -->
+                {% if reviews %}
+                <div class="reviews-list">
+                    {% for review in reviews %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-0">{{ review.user.username }}</h6>
+                                    <small class="text-muted">{{ review.created_at|date:"d.m.Y H:i" }}</small>
+                                </div>
+                                <div class="text-warning">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <p class="mb-0">{{ review.comment }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Отзывов пока нет. Будьте первым!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Похожие товары -->
+    {% if related_products %}
+    <div class="mt-5">
+        <h3 class="mb-4">Похожие товары</h3>
+        <div class="row g-4">
+            {% for product in related_products %}
+            <div class="col-md-3">
+                <div class="card h-100">
+                    {% if product.image %}
+                    <img src="{{ product.image.url }}" class="card-img-top" 
+                         style="height: 150px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 150px;">
+                        <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <a href="{{ product.get_absolute_url }}" class="text-decoration-none">
+                                {{ product.name }}
+                            </a>
+                        </h6>
+                        <p class="text-primary fw-bold">{{ product.price }} ₽</p>
+                        <a href="{{ product.get_absolute_url }}" class="btn btn-sm btn-outline-primary w-100">
+                            Подробнее
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function changeMainImage(url) {
+    document.getElementById('mainImage').src = url;
+}
+
+function addToWishlist(productId) {
+    fetch(`/wishlist/add/${productId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function removeFromWishlist(productId) {
+    fetch(`/wishlist/remove/${productId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

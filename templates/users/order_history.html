@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}История заказов - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h2 class="mb-4">История заказов</h2>
+    
+    {% if orders %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>№ Заказа</th>
+                    <th>Дата создания</th>
+                    <th>Статус</th>
+                    <th>Товаров</th>
+                    <th>Сумма</th>
+                    <th>Оплачен</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td class="fw-bold">#{{ order.id }}</td>
+                    <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <span class="badge bg-{{ order.get_status_display_class }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ order.items.count }}</td>
+                    <td class="fw-bold">{{ order.get_total_cost }} ₽</td>
+                    <td>
+                        {% if order.paid %}
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        {% else %}
+                        <i class="bi bi-x-circle-fill text-danger"></i>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'orders:order_detail' order.id %}" 
+                           class="btn btn-sm btn-primary">
+                            Подробнее
+                        </a>
+                        {% if order.status == 'pending' %}
+                        <a href="{% url 'orders:order_cancel' order.id %}" 
+                           class="btn btn-sm btn-outline-danger">
+                            Отменить
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4>У вас пока нет заказов</h4>
+        <p>Начните покупки в нашем магазине!</p>
+        <a href="{% url 'shop:product_list' %}" class="btn btn-primary">
+            Перейти в каталог
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

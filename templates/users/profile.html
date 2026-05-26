@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Профиль - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <!-- Боковая панель -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if user.profile.avatar %}
+                    <img src="{{ user.profile.avatar.url }}" class="rounded-circle mb-3" 
+                         style="width: 150px; height: 150px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-3" 
+                         style="width: 150px; height: 150px;">
+                        <i class="bi bi-person-fill text-white" style="font-size: 4rem;"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <h5>{{ user.first_name }} {{ user.last_name }}</h5>
+                    <p class="text-muted">@{{ user.username }}</p>
+                </div>
+                
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <a href="{% url 'users:profile' %}" class="text-decoration-none">
+                            <i class="bi bi-person"></i> Профиль
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{% url 'users:order_history' %}" class="text-decoration-none">
+                            <i class="bi bi-box-seam"></i> Мои заказы
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{% url 'shop:wishlist' %}" class="text-decoration-none">
+                            <i class="bi bi-heart"></i> Избранное
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{% url 'users:logout' %}" class="text-decoration-none text-danger">
+                            <i class="bi bi-box-arrow-right"></i> Выход
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <h2 class="mb-4">Редактирование профиля</h2>
+            
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Сохранить изменения
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Последние заказы -->
+            <h3 class="mt-5 mb-3">Последние заказы</h3>
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>№ Заказа</th>
+                            <th>Дата</th>
+                            <th>Статус</th>
+                            <th>Сумма</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                <span class="badge bg-{{ order.get_status_display_class }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ order.get_total_cost }} ₽</td>
+                            <td>
+                                <a href="{% url 'orders:order_detail' order.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Подробнее
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <a href="{% url 'users:order_history' %}" class="btn btn-outline-secondary">
+                Показать все заказы
+            </a>
+            {% else %}
+            <div class="alert alert-info">
+                У вас пока нет заказов.
+                <a href="{% url 'shop:product_list' %}" class="alert-link">Начать покупки</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
